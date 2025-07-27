@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Tic-Tac-Toe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #10141c;
+            --primary-color: #00ffff; /* Cyan */
+            --secondary-color: #ff00ff; /* Magenta */
+            --cell-bg: rgba(0, 255, 255, 0.05);
+            --border-color: rgba(0, 255, 255, 0.2);
+            --glow-color: rgba(0, 255, 255, 0.7);
+            --text-color: #e0e0e0;
+            --font-family: 'Russo One', sans-serif;
+        }
+
+        /* --- Base & Body --- */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+        }
+
+        .hidden { display: none !important; }
+
+        /* --- Welcome Screen --- */
+        #welcome-screen {
+            text-align: center;
+            animation: fadeIn 1s ease-in-out;
+        }
+
+        #welcome-screen h1 {
+            font-size: 3.5rem;
+            color: var(--primary-color);
+            text-shadow: 0 0 15px var(--glow-color);
+            margin-bottom: 1rem;
+        }
+
+        #welcome-screen p {
+            font-size: 1.2rem;
+            color: var(--text-color);
+            margin-bottom: 2rem;
+        }
+
+        .button {
+            background: transparent;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 12px 24px;
+            font-family: var(--font-family);
+            font-size: 1.2rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 5px var(--glow-color), inset 0 0 5px var(--glow-color);
+        }
+
+        .button:hover {
+            background: var(--primary-color);
+            color: var(--bg-color);
+            box-shadow: 0 0 20px var(--glow-color);
+        }
+
+        /* --- Game Interface --- */
+        #game-interface {
+            width: 95%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            animation: slideIn 0.7s ease-out;
+        }
+
+        .game-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .game-header h1 {
+            margin: 0;
+            font-size: 2rem;
+            color: var(--primary-color);
+            text-shadow: 0 0 10px var(--glow-color);
+        }
+        
+        .header-icons { display: flex; gap: 1rem; }
+
+        .icon-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            color: var(--primary-color);
+            transition: transform 0.3s, color 0.3s;
+        }
+        .icon-button:hover {
+            color: var(--secondary-color);
+            transform: scale(1.1);
+        }
+        .icon-button svg { width: 30px; height: 30px; }
+
+
+        #game-info {
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            background: var(--cell-bg);
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        #turn-indicator, .score { font-size: 1.2rem; }
+        .score span { color: var(--primary-color); }
+        #turn-text { transition: color 0.5s; }
+
+        /* --- Board & Cells --- */
+        #board-container {
+            position: relative;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 15px;
+            width: 330px;
+            height: 330px;
+        }
+
+        .cell {
+            background-color: var(--cell-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 5rem;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .cell:not(.occupied):hover {
+            background-color: rgba(0, 255, 255, 0.15);
+            border-color: var(--primary-color);
+        }
+
+        .cell.occupied { cursor: not-allowed; }
+
+        .cell .x, .cell .o {
+            opacity: 0;
+            animation: drawMark 0.4s forwards;
+        }
+
+        .cell .x { color: var(--primary-color); text-shadow: 0 0 15px var(--glow-color); }
+        .cell .o { color: var(--secondary-color); text-shadow: 0 0 15px var(--secondary-color); }
+
+        #win-line {
+            position: absolute;
+            background-color: white;
+            height: 5px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px white;
+            transform-origin: left;
+            opacity: 0;
+            transition: opacity 0.5s, width 0.5s, transform 0.5s;
+            pointer-events: none;
+        }
+
+        /* --- Modals (Game Over, Settings) --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.5s;
+        }
+
+        .modal-content {
+            background: var(--bg-color);
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 25px var(--glow-color);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            animation: slideIn 0.5s;
+            width: 90%;
+            max-width: 400px;
+        }
+        
+        .modal-content h2 {
+            font-size: 2.5rem;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-content .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .settings-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .settings-option label { font-size: 1.2rem; }
+
+        .toggle-switch {
+            display: flex;
+            background: var(--cell-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+        }
+        
+        .toggle-switch button {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            padding: 8px 15px;
+            cursor: pointer;
+            font-family: var(--font-family);
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        
+        .toggle-switch button.active {
+            background: var(--primary-color);
+            color: var(--bg-color);
+            border-radius: 20px;
+        }
+
+
+        /* --- Animations --- */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes drawMark { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+
+        /* --- Responsive --- */
+        @media (max-width: 600px) {
+            #welcome-screen h1 { font-size: 2.5rem; }
+            #game-interface { gap: 1.5rem; }
+            .game-header h1 { font-size: 1.5rem; }
+            #board { width: 90vw; height: 90vw; gap: 10px; }
+            .cell { font-size: 4rem; }
+            .modal-content h2 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Embedded Audio Files -->
+    <audio id="click-sound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU9vT19JTU5HIFFVQVdFMDhNUDM="></audio>
+    <audio id="win-sound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU9vT19JTU5HIFFVQVdFMDhNUDM="></audio>
+    <audio id="draw-sound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU9vT19JTU5HIFFVQVdFMDhNUDM="></audio>
+    <audio id="ui-sound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU9vT19JTU5HIFFVQVdFMDhNUDM="></audio>
+    
+    <!-- Welcome Screen -->
+    <div id="welcome-screen">
+        <h1>QUANTUM<br>TIC-TAC-TOE</h1>
+        <p>A new era of a classic game.</p>
+        <button id="start-game-btn" class="button">Initiate Game</button>
+    </div>
+
+    <!-- Main Game Interface -->
+    <div id="game-interface" class="hidden">
+        <header class="game-header">
+            <h1>Quantum Grid</h1>
+            <div class="header-icons">
+                 <button id="settings-btn" class="icon-button">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.44,0.17-0.48,0.41L9.19,5.03C8.6,5.27,8.07,5.59,7.57,5.97L5.18,5.01C4.96,4.94,4.7,5.01,4.59,5.23l-1.92,3.32 C2.56,8.77,2.61,9.04,2.79,9.18l2.03,1.58C4.8,11.06,4.78,11.37,4.78,11.69c0,0.32,0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.49,2.22 c0.04,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.48-0.41l0.49-2.22c0.59-0.24,1.12-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0.01,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+                 </button>
+            </div>
+        </header>
+
+        <div id="game-info">
+            <div id="turn-indicator">
+                <span>Turn: </span><span id="turn-text">Player X</span>
+            </div>
+            <div class="score" id="player-score">Player: <span>0</span></div>
+            <div class="score" id="ai-score">AI: <span>0</span></div>
+            <div class="score" id="draw-score">Draws: <span>0</span></div>
+        </div>
+        
+        <div id="board-container">
+            <div id="board"></div>
+            <div id="win-line"></div>
+        </div>
+
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 id="game-over-message"></h2>
+            <div class="button-group">
+                <button id="restart-game-btn" class="button">Play Again</button>
+                <button id="change-mode-btn" class="button">Change Mode</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2>Settings</h2>
+            
+            <div class="settings-option">
+                <label for="game-mode-toggle">Game Mode</label>
+                <div id="game-mode-toggle" class="toggle-switch">
+                    <button data-mode="pvp">P vs P</button>
+                    <button data-mode="pve_easy">Easy AI</button>
+                    <button data-mode="pve_hard" class="active">Hard AI</button>
+                </div>
+            </div>
+            
+            <div class="settings-option">
+                <label for="player-symbol-toggle">Your Symbol</label>
+                <div id="player-symbol-toggle" class="toggle-switch">
+                    <button data-symbol="X" class="active">X</button>
+                    <button data-symbol="O">O</button>
+                </div>
+            </div>
+            
+             <div class="settings-option">
+                <label for="sound-toggle">Sound</label>
+                <div id="sound-toggle" class="toggle-switch">
+                    <button data-sound="on" class="active">On</button>
+                    <button data-sound="off">Off</button>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button id="reset-stats-btn" class="button">Reset Stats</button>
+                <button id="close-settings-btn" class="button">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DOM Elements ---
+        const welcomeScreen = document.getElementById('welcome-screen');
+        const gameInterface = document.getElementById('game-interface');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const boardElement = document.getElementById('board');
+        const winLine = document.getElementById('win-line');
+
+        const turnText = document.getElementById('turn-text');
+        const playerScoreEl = document.querySelector('#player-score span');
+        const aiScoreEl = document.querySelector('#ai-score span');
+        const drawScoreEl = document.querySelector('#draw-score span');
+
+        const gameOverModal = document.getElementById('game-over-modal');
+        const gameOverMessage = document.getElementById('game-over-message');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+        const changeModeBtn = document.getElementById('change-mode-btn');
+
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        const resetStatsBtn = document.getElementById('reset-stats-btn');
+        
+        const gameModeToggle = document.getElementById('game-mode-toggle');
+        const playerSymbolToggle = document.getElementById('player-symbol-toggle');
+        const soundToggle = document.getElementById('sound-toggle');
+        
+        // --- Audio Elements ---
+        const sounds = {
+            click: document.getElementById('click-sound'),
+            win: document.getElementById('win-sound'),
+            draw: document.getElementById('draw-sound'),
+            ui: document.getElementById('ui-sound')
+        };
+
+        // --- Game State & Settings ---
+        let gameState = {};
+        let settings = {
+            gameMode: 'pve_hard', // pvp, pve_easy, pve_hard
+            playerSymbol: 'X',
+            sound: true,
+            stats: { player: 0, ai: 0, draws: 0 }
+        };
+
+        const WINNING_COMBINATIONS = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+            [0, 4, 8], [2, 4, 6]             // diagonals
+        ];
+
+        // --- Core Functions ---
+
+        const loadSettings = () => {
+            const savedSettings = localStorage.getItem('quantumTicTacToeSettings');
+            if (savedSettings) {
+                settings = JSON.parse(savedSettings);
+            }
+            updateStatsDisplay();
+            updateSettingsUI();
+        };
+
+        const saveSettings = () => {
+            localStorage.setItem('quantumTicTacToeSettings', JSON.stringify(settings));
+        };
+
+        const playSound = (soundName) => {
+            if (settings.sound && sounds[soundName]) {
+                sounds[soundName].currentTime = 0;
+                sounds[soundName].play();
+            }
+        };
+
+        const vibrate = (duration = 50) => {
+            if (navigator.vibrate) {
+                navigator.vibrate(duration);
+            }
+        };
+
+        const startGame = () => {
+            gameState = {
+                board: Array(9).fill(null),
+                currentPlayer: 'X',
+                isGameActive: true,
+                aiSymbol: settings.playerSymbol === 'X' ? 'O' : 'X'
+            };
+            
+            boardElement.innerHTML = '';
+            winLine.style.opacity = '0';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                cell.addEventListener('click', handleCellClick);
+                boardElement.appendChild(cell);
+            }
+            
+            updateTurnIndicator();
+            gameOverModal.classList.add('hidden');
+            
+            if (settings.gameMode.startsWith('pve') && gameState.currentPlayer === gameState.aiSymbol) {
+                setTimeout(makeAiMove, 500);
+            }
+        };
+
+        const handleCellClick = (e) => {
+            const cell = e.target;
+            const index = parseInt(cell.dataset.index);
+
+            if (gameState.board[index] || !gameState.isGameActive) return;
+            
+            if (settings.gameMode.startsWith('pve')) {
+                if(gameState.currentPlayer === gameState.aiSymbol) return;
+            }
+
+            placeMark(index, gameState.currentPlayer);
+            vibrate();
+
+            if (checkEndCondition(gameState.currentPlayer)) return;
+            
+            switchTurn();
+
+            if (settings.gameMode.startsWith('pve') && gameState.currentPlayer === gameState.aiSymbol && gameState.isGameActive) {
+                setTimeout(makeAiMove, 500);
+            }
+        };
+
+        const placeMark = (index, player) => {
+            gameState.board[index] = player;
+            const cell = boardElement.children[index];
+            cell.classList.add('occupied');
+            const mark = document.createElement('span');
+            mark.className = player.toLowerCase();
+            mark.textContent = player;
+            cell.appendChild(mark);
+            playSound('click');
+        };
+
+        const switchTurn = () => {
+            gameState.currentPlayer = gameState.currentPlayer === 'X' ? 'O' : 'X';
+            updateTurnIndicator();
+        };
+        
+        const updateTurnIndicator = () => {
+            const isPlayerTurn = gameState.currentPlayer === settings.playerSymbol;
+            const turnPlayerName = settings.gameMode === 'pvp' 
+                ? `Player ${gameState.currentPlayer}`
+                : isPlayerTurn ? 'Your Turn' : 'AI Turn';
+            
+            turnText.textContent = turnPlayerName;
+            turnText.style.color = gameState.currentPlayer === 'X' ? 'var(--primary-color)' : 'var(--secondary-color)';
+        };
+
+        const checkEndCondition = (player) => {
+            const win = checkWin(player);
+            if (win) {
+                endGame(false, player, win.combination);
+                return true;
+            }
+            if (isDraw()) {
+                endGame(true);
+                return true;
+            }
+            return false;
+        };
+
+        const checkWin = (player) => {
+            for(const combination of WINNING_COMBINATIONS){
+                if(combination.every(index => gameState.board[index] === player)){
+                    return { combination };
+                }
+            }
+            return null;
+        };
+
+        const isDraw = () => {
+            return gameState.board.every(cell => cell !== null);
+        };
+        
+        const endGame = (isDraw, winner = null, combination = null) => {
+            gameState.isGameActive = false;
+            
+            if(isDraw){
+                gameOverMessage.textContent = "It's a Draw!";
+                playSound('draw');
+                settings.stats.draws++;
+            } else {
+                let winnerName;
+                if(settings.gameMode === 'pvp'){
+                    winnerName = `Player ${winner} Wins!`;
+                } else {
+                    winnerName = winner === settings.playerSymbol ? 'You Win!' : 'AI Wins!';
+                    winner === settings.playerSymbol ? settings.stats.player++ : settings.stats.ai++;
+                }
+                gameOverMessage.textContent = winnerName;
+                gameOverMessage.style.color = winner === 'X' ? 'var(--primary-color)' : 'var(--secondary-color)';
+                playSound('win');
+                vibrate([100, 50, 100]);
+                drawWinLine(combination);
+            }
+            
+            updateStatsDisplay();
+            saveSettings();
+            
+            setTimeout(() => {
+                gameOverModal.classList.remove('hidden');
+            }, 1000);
+        };
+
+        const drawWinLine = (combination) => {
+            const startCell = boardElement.children[combination[0]];
+            const endCell = boardElement.children[combination[2]];
+            
+            const boardRect = boardElement.getBoundingClientRect();
+            const startRect = startCell.getBoundingClientRect();
+            const endRect = endCell.getBoundingClientRect();
+
+            const startX = startRect.left + startRect.width / 2 - boardRect.left;
+            const startY = startRect.top + startRect.height / 2 - boardRect.top;
+            const endX = endRect.left + endRect.width / 2 - boardRect.left;
+            const endY = endRect.top + endRect.height / 2 - boardRect.top;
+
+            const angle = Math.atan2(endY - startY, endX - startX) * 180 / Math.PI;
+            const length = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+
+            winLine.style.width = `${length}px`;
+            winLine.style.transform = `translate(${startX}px, ${startY}px) rotate(${angle}deg)`;
+            winLine.style.opacity = '1';
+        };
+
+        const updateStatsDisplay = () => {
+            playerScoreEl.textContent = settings.stats.player;
+            aiScoreEl.textContent = settings.stats.ai;
+            drawScoreEl.textContent = settings.stats.draws;
+
+            // Update score labels based on mode
+            const playerLabel = document.querySelector('#player-score');
+            const aiLabel = document.querySelector('#ai-score');
+            if (settings.gameMode === 'pvp') {
+                playerLabel.innerHTML = `Player X: <span>${settings.stats.player}</span>`;
+                aiLabel.innerHTML = `Player O: <span>${settings.stats.ai}</span>`;
+            } else {
+                playerLabel.innerHTML = `Player: <span>${settings.stats.player}</span>`;
+                aiLabel.innerHTML = `AI: <span>${settings.stats.ai}</span>`;
+            }
+        };
+        
+        // --- AI Logic ---
+        const makeAiMove = () => {
+            if (!gameState.isGameActive) return;
+            let move;
+            if (settings.gameMode === 'pve_easy') {
+                move = getEasyAiMove();
+            } else { // pve_hard
+                move = getHardAiMove();
+            }
+            
+            if (move !== null) {
+                placeMark(move, gameState.aiSymbol);
+                if (checkEndCondition(gameState.aiSymbol)) return;
+                switchTurn();
+            }
+        };
+
+        const getEasyAiMove = () => {
+            const availableMoves = gameState.board.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
+            return availableMoves[Math.floor(Math.random() * availableMoves.length)];
+        };
+
+        const getHardAiMove = () => {
+            return minimax(gameState.board, gameState.aiSymbol).index;
+        };
+
+        const minimax = (newBoard, player) => {
+            const availableSpots = newBoard.map((val, idx) => val === null ? idx : null).filter(val => val !== null);
+
+            const humanPlayer = settings.playerSymbol;
+            const aiPlayer = gameState.aiSymbol;
+
+            if (checkWinForMinimax(newBoard, humanPlayer)) {
+                return { score: -10 };
+            } else if (checkWinForMinimax(newBoard, aiPlayer)) {
+                return { score: 10 };
+            } else if (availableSpots.length === 0) {
+                return { score: 0 };
+            }
+
+            const moves = [];
+            for (let i = 0; i < availableSpots.length; i++) {
+                const move = {};
+                move.index = availableSpots[i];
+                newBoard[availableSpots[i]] = player;
+
+                if (player === aiPlayer) {
+                    const result = minimax(newBoard, humanPlayer);
+                    move.score = result.score;
+                } else {
+                    const result = minimax(newBoard, aiPlayer);
+                    move.score = result.score;
+                }
+                newBoard[availableSpots[i]] = null; // reset the spot
+                moves.push(move);
+            }
+
+            let bestMove;
+            if (player === aiPlayer) {
+                let bestScore = -10000;
+                for (let i = 0; i < moves.length; i++) {
+                    if (moves[i].score > bestScore) {
+                        bestScore = moves[i].score;
+                        bestMove = i;
+                    }
+                }
+            } else {
+                let bestScore = 10000;
+                for (let i = 0; i < moves.length; i++) {
+                    if (moves[i].score < bestScore) {
+                        bestScore = moves[i].score;
+                        bestMove = i;
+                    }
+                }
+            }
+            return moves[bestMove];
+        };
+        
+        const checkWinForMinimax = (board, player) => {
+             return WINNING_COMBINATIONS.some(combination => {
+                return combination.every(index => board[index] === player);
+            });
+        };
+
+        // --- UI Event Listeners ---
+        
+        startGameBtn.addEventListener('click', () => {
+            playSound('ui');
+            vibrate();
+            welcomeScreen.classList.add('hidden');
+            gameInterface.classList.remove('hidden');
+            startGame();
+        });
+
+        restartGameBtn.addEventListener('click', () => {
+            playSound('ui');
+            vibrate();
+            startGame();
+        });
+        
+        changeModeBtn.addEventListener('click', () => {
+            playSound('ui');
+            vibrate();
+            gameOverModal.classList.add('hidden');
+            gameInterface.classList.add('hidden');
+            welcomeScreen.classList.remove('hidden');
+        });
+        
+        settingsBtn.addEventListener('click', () => {
+            playSound('ui');
+            vibrate();
+            updateSettingsUI();
+            settingsModal.classList.remove('hidden');
+        });
+
+        closeSettingsBtn.addEventListener('click', () => {
+            playSound('ui');
+            vibrate();
+            settingsModal.classList.add('hidden');
+            // Restart game if settings that affect gameplay were changed
+            const savedSettings = JSON.parse(localStorage.getItem('quantumTicTacToeSettings') || '{}');
+            if (savedSettings.gameMode !== settings.gameMode || savedSettings.playerSymbol !== settings.playerSymbol) {
+                 startGame();
+            }
+            saveSettings();
+        });
+
+        const handleToggle = (e, settingName) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            
+            playSound('ui');
+            vibrate();
+            const key = Object.keys(button.dataset)[0];
+            const value = button.dataset[key];
+            
+            settings[settingName] = value;
+
+            const parent = button.parentElement;
+            parent.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+        };
+
+        gameModeToggle.addEventListener('click', (e) => handleToggle(e, 'gameMode'));
+        playerSymbolToggle.addEventListener('click', (e) => handleToggle(e, 'playerSymbol'));
+        soundToggle.addEventListener('click', (e) => {
+            handleToggle(e, 'sound');
+            settings.sound = (settings.sound === 'on');
+        });
+
+        resetStatsBtn.addEventListener('click', () => {
+            if(confirm("Are you sure you want to reset all your stats? This cannot be undone.")){
+                playSound('ui');
+                vibrate();
+                settings.stats = { player: 0, ai: 0, draws: 0 };
+                saveSettings();
+                updateStatsDisplay();
+            }
+        });
+
+        const updateSettingsUI = () => {
+            const { gameMode, playerSymbol, sound } = settings;
+            document.querySelector(`#game-mode-toggle button[data-mode="${gameMode}"]`).classList.add('active');
+            document.querySelector(`#player-symbol-toggle button[data-symbol="${playerSymbol}"]`).classList.add('active');
+            document.querySelector(`#sound-toggle button[data-sound="${sound ? 'on' : 'off'}"]`).classList.add('active');
+        };
+
+        // --- Initial Load ---
+        loadSettings();
+
+    });
+    </script>
+</body>
+</html>
